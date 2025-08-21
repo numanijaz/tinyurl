@@ -11,4 +11,7 @@ func SetupAuthRouters(api *gin.RouterGroup) {
 	api.POST("/auth/register", handlers.RegisterUser)
 	api.POST("/auth/login", handlers.Login)
 	api.POST("/auth/logout", handlers.Logout)
+
+	api.GET("/auth/login/:provider", handlers.BeginOAuth)
+	api.GET("/auth/callback/:provider", handlers.CompleteOAuth)
 }

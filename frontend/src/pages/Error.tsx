@@ -7,9 +7,9 @@ export function NotFound() {
     return (
         <div className="p-6 flex flex-col items-center gap-6">
             <h1 className="text-4xl font-semibold tracking-tight text-balance">
-                404
+                Oops...
             </h1>
-            <p>Page not found.</p>
+            <p>An error occurred.</p>
             <Button onClick={() => navigate("/")}>
                 Return to website
             </Button>

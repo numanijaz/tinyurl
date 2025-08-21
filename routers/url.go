@@ -7,5 +7,4 @@ import (
 
 func SetupURLRoutes(rg *gin.RouterGroup) {
 	rg.POST("shortenurl", handlers.ShortenUrl)
-
 }

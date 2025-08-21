@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/markbates/goth/gothic"
 	"github.com/numanijaz/tinyurl/config"
 	"github.com/numanijaz/tinyurl/models"
 	"golang.org/x/crypto/bcrypt"
@@ -153,4 +155,58 @@ func Logout(c *gin.Context) {
 		true,
 	)
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully."})
+}
+
+func BeginOAuth(c *gin.Context) {
+	provider := c.Param("provider")
+	if provider == "" {
+		c.Redirect(http.StatusPermanentRedirect, "/error")
+		return
+	}
+
+	request := c.Request.WithContext(context.WithValue(c.Request.Context(), gothic.ProviderParamKey, provider))
+	gothic.BeginAuthHandler(c.Writer, request)
+}
+
+func CompleteOAuth(c *gin.Context) {
+	provider := c.Param("provider")
+	request := c.Request.WithContext(context.WithValue(c.Request.Context(), gothic.ProviderParamKey, provider))
+
+	guser, err := gothic.CompleteUserAuth(c.Writer, request)
+	if err != nil {
+		c.Redirect(http.StatusPermanentRedirect, "/error")
+		return
+	}
+
+	user := models.UserModel{
+		Email:          guser.Email,
+		Name:           pickNonEmpty(guser.Name, guser.NickName, guser.Email),
+		HashedPassword: "",
+	}
+
+	if !UserExists(user.Email) {
+		userDB[user.Email] = user
+	}
+	// Save essential user fields in our own session
+	// sess, _ := config.CookieStore.Get(c.Request, "app_session")
+	// sess.Values["user_id"] = guser.UserID
+	// sess.Values["name"] = pickNonEmpty(guser.Name, guser.NickName, guser.Email)
+	// sess.Values["email"] = guser.Email
+	// sess.Values["avatar"] = guser.AvatarURL
+	// sess.Values["provider"] = guser.Provider
+	// if err := sessions.Save(c.Request, c.Writer); err != nil {
+	// 	log.Printf("session save error: %v", err)
+	// }
+
+	setAuthTokenCookie(user, c)
+	c.Redirect(http.StatusFound, "/")
+}
+
+func pickNonEmpty(options ...string) string {
+	for _, v := range options {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
