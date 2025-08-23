@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/numanijaz/tinyurl/database"
+	"github.com/numanijaz/tinyurl/models"
 )
-
-var db = make(map[string]string)
 
 func firstN(s string, n int) string {
 	v := []rune(s)
@@ -29,7 +29,7 @@ func getSHA256Hash(url string) string {
 }
 
 func getUniqueHash(url string) string {
-	maxAttempts := 5
+	maxAttemptsPerLength := 5
 	var _getUniqueHash func(int) string
 	_getUniqueHash = func(length int) string {
 		if length > 12 {
@@ -39,26 +39,33 @@ func getUniqueHash(url string) string {
 
 		var uniqueHash string
 		var success bool
-		for i := range maxAttempts {
+		for i := range maxAttemptsPerLength {
 			saltedUrl := url
 			if i > 0 {
 				saltedUrl = fmt.Sprintf("%s-%v", url, i)
 			}
 			uniqueHash = firstN(getSHA256Hash(saltedUrl), length)
-			value, exists := db[uniqueHash]
-			if exists && value == url {
+
+			// DB call to check if new hash already exists
+			var existingRecord models.UrlModel
+			dbResult := database.DB.First(&existingRecord, "unique_hash = ?", uniqueHash)
+
+			if existingRecord.OriginalUrl == url {
 				// hash for an existing URL requested,
 				// this may be a security issue because two users requesting
 				// short URL for the same url will get the same hash
 				success = true
 				break
-			} else if !exists {
+			} else if dbResult.RowsAffected == 0 {
 				success = true // unique hash
 				break
 			}
 		}
 		if !success {
-			log.Printf("Failed to resolve hash collission after %v attempts.", maxAttempts)
+			log.Printf(
+				"Failed to resolve hash collission after %v attempts. Trying with one higher length",
+				maxAttemptsPerLength,
+			)
 			uniqueHash = _getUniqueHash(length + 1) // try with higher length (recursively)
 		}
 		return uniqueHash
@@ -89,20 +96,32 @@ func ShortenUrl(c *gin.Context) {
 		return
 	}
 
-	db[uniqueHash] = url
+	shortURL := models.UrlModel{
+		OriginalUrl: url,
+		UniqueHash:  uniqueHash,
+		VisitCount:  0,
+		// TODO: set userid that was put in jwt
+	}
+
+	created := database.DB.Create(&shortURL)
+
+	print(created)
 
 	c.JSON(http.StatusOK, gin.H{"tinyurl": generateURL(c, uniqueHash)})
 }
 
 func GetTinyUrl(c *gin.Context) {
-	shortUrl := c.Param("tinyurl")
-	if originalUrl, ok := db[shortUrl]; ok {
-		c.Redirect(http.StatusFound, originalUrl)
+	shortUrlHash := c.Param("tinyurl")
+
+	shortUrl := models.UrlModel{}
+	var count int64
+	database.DB.First(&shortUrl, "unique_hash = ?", shortUrlHash).Count(&count)
+	if count == 0 {
+		// The tinyurl handler couldn't find the requested url
+		// let the frontend app display error
+		c.Redirect(http.StatusSeeOther, "/notfound")
 		return
 	}
-	// The tinyurl handler couldn't find the requested
-	// url. Maybe this a known route in frontend app?
-	// Serve the frontend app, the app will navigate to notfound
-	// page if the route is unknown to the frontend app as well.
-	ServeFrontendApp(c)
+
+	c.Redirect(http.StatusFound, shortUrl.OriginalUrl)
 }

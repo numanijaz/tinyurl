@@ -4,7 +4,9 @@ import "gorm.io/gorm"
 
 type UrlModel struct {
 	gorm.Model
-	ShortUrl    string
+	UniqueHash  string
 	OriginalUrl string
 	VisitCount  int
+	UserID      uint
+	User        UserModel `gorm:"foreignKey:UserID;references:ID"`
 }

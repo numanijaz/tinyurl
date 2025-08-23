@@ -55,8 +55,8 @@ func setAuthTokenCookie(user models.UserModel, c *gin.Context) {
 		signedToken,
 		int((15 * time.Minute).Seconds()),
 		"/",
-		"",    // current domain
-		false, // TODO: change to true in production with https
+		"", // current domain
+		config.GetConfig().GO_ENV == "production", // use secure in production mode
 		true,
 	)
 }
@@ -150,8 +150,8 @@ func Logout(c *gin.Context) {
 		"",
 		-1,
 		"/",
-		"",    // current domain
-		false, // TODO: change to true in production with https
+		"", // current domain
+		config.GetConfig().GO_ENV == "production", // use secure in production mode
 		true,
 	)
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully."})
@@ -187,16 +187,6 @@ func CompleteOAuth(c *gin.Context) {
 	if !UserExists(user.Email) {
 		userDB[user.Email] = user
 	}
-	// Save essential user fields in our own session
-	// sess, _ := config.CookieStore.Get(c.Request, "app_session")
-	// sess.Values["user_id"] = guser.UserID
-	// sess.Values["name"] = pickNonEmpty(guser.Name, guser.NickName, guser.Email)
-	// sess.Values["email"] = guser.Email
-	// sess.Values["avatar"] = guser.AvatarURL
-	// sess.Values["provider"] = guser.Provider
-	// if err := sessions.Save(c.Request, c.Writer); err != nil {
-	// 	log.Printf("session save error: %v", err)
-	// }
 
 	setAuthTokenCookie(user, c)
 	c.Redirect(http.StatusFound, "/")

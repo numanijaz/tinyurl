@@ -9,9 +9,13 @@ import (
 
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
+	"github.com/markbates/goth"
+	"github.com/markbates/goth/providers/github"
+	"github.com/markbates/goth/providers/google"
 )
 
 type Config struct {
+	GO_ENV               string
 	HOST_NAME            string
 	PORT                 string
 	SECRET_KEY           string
@@ -48,6 +52,7 @@ func GetConfig() *Config {
 		secretKey := env("SECRET_KEY", "")
 
 		cfg = &Config{
+			GO_ENV:               env("GO_ENV", "development"),
 			PORT:                 env("PORT", "8000"),
 			HOST_NAME:            host,
 			SECRET_KEY:           secretKey,
@@ -69,4 +74,25 @@ func GetConfig() *Config {
 		}
 	})
 	return cfg
+}
+
+func SetupOauthProviders() {
+	cfg := GetConfig()
+	// gothic
+	goth.UseProviders(
+		github.New(
+			cfg.GITHUB_CLIENT_ID,
+			cfg.GITHUB_CLIENT_SECRET,
+			cfg.BASE_URL+"/api/auth/callback/github",
+			"user:email",
+		),
+		google.New(
+			cfg.GOOGLE_CLIENT_ID,
+			cfg.GOOGLE_CLIENT_SECRET,
+			cfg.BASE_URL+"/api/auth/callback/google",
+			"email",
+			"profile",
+		),
+	)
+	// gothic.Store = config.CookieStore
 }
