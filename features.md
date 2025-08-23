@@ -1,5 +1,5 @@
 - [x] Implement URL form and short URL result components in React app
 - [x] User signup/login
+- [x] Introduce DB
 - [ ] User specific tinyurl generation
-- [ ] Introduce DB
 - [ ] Testing

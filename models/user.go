@@ -7,6 +7,7 @@ type UserModel struct {
 	Email          string
 	Name           string
 	HashedPassword string
+	OAuthUser      bool
 
 	ShortURLs []UrlModel `gorm:"foreignKey:UserID;references:ID"`
 }

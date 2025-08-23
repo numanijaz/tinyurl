@@ -10,17 +10,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/markbates/goth/gothic"
 	"github.com/numanijaz/tinyurl/config"
+	"github.com/numanijaz/tinyurl/database"
 	"github.com/numanijaz/tinyurl/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var userDB = make(map[string]models.UserModel)
-
-func UserExists(username string) bool {
-	if _, ok := userDB[username]; ok {
-		return true
-	}
-	return false
+func UserExists(userEmail string) bool {
+	var user models.UserModel
+	database.DB.First(&user, "email = ?", userEmail)
+	return user.Email != ""
 }
 
 func HashPassword(password string) (string, error) {
@@ -87,7 +85,7 @@ func RegisterUser(c *gin.Context) {
 		Name:           email,
 		HashedPassword: hashedPassword,
 	}
-	userDB[user.Email] = user
+	database.DB.Create(&user)
 
 	setAuthTokenCookie(user, c)
 	c.JSON(http.StatusOK, gin.H{})
@@ -106,8 +104,11 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	user, userExists := userDB[email]
-	if !userExists {
+	var user models.UserModel
+	database.DB.First(&user, "email = ?", email)
+
+	if user.Email == "" {
+		// user does not exist
 		c.JSON(
 			http.StatusBadRequest,
 			genericError,
@@ -133,8 +134,9 @@ func GetCurrentUserInfo(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{})
 		return
 	}
-	user, exists := userDB[subject.(string)]
-	if !exists {
+	var user models.UserModel
+	database.DB.First(&user, "email = ?", subject.(string))
+	if user.Email == "" {
 		c.JSON(http.StatusOK, gin.H{})
 		return
 	}
@@ -182,10 +184,11 @@ func CompleteOAuth(c *gin.Context) {
 		Email:          guser.Email,
 		Name:           pickNonEmpty(guser.Name, guser.NickName, guser.Email),
 		HashedPassword: "",
+		OAuthUser:      true,
 	}
 
 	if !UserExists(user.Email) {
-		userDB[user.Email] = user
+		database.DB.Create(&user)
 	}
 
 	setAuthTokenCookie(user, c)
