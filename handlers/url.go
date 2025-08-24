@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -100,7 +101,14 @@ func ShortenUrl(c *gin.Context) {
 		OriginalUrl: url,
 		UniqueHash:  uniqueHash,
 		VisitCount:  0,
-		// TODO: set userid that was put in jwt
+	}
+
+	if userId, exists := c.Get("sub"); exists {
+		// attach current user to the short URL
+		intUser, err := strconv.Atoi(userId.(string))
+		if err == nil {
+			shortURL.UserID = uint(intUser)
+		}
 	}
 
 	created := database.DB.Create(&shortURL)

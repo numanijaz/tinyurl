@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +35,7 @@ func setAuthTokenCookie(user models.UserModel, c *gin.Context) {
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		jwt.MapClaims{
-			"sub": user.Email,
+			"sub": strconv.Itoa(int(user.ID)),
 		},
 	)
 	cfg := config.GetConfig()
@@ -62,7 +62,6 @@ func setAuthTokenCookie(user models.UserModel, c *gin.Context) {
 func RegisterUser(c *gin.Context) {
 	email := c.PostForm("email")
 	password := c.PostForm("password")
-	fmt.Printf("email: %s, password: %s", email, password)
 	if email == "" || password == "" {
 		c.JSON(
 			http.StatusBadRequest,
@@ -135,7 +134,7 @@ func GetCurrentUserInfo(c *gin.Context) {
 		return
 	}
 	var user models.UserModel
-	database.DB.First(&user, "email = ?", subject.(string))
+	database.DB.First(&user, "id = ?", subject.(string))
 	if user.Email == "" {
 		c.JSON(http.StatusOK, gin.H{})
 		return
